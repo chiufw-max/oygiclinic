@@ -117,9 +117,8 @@
     
     <label class="field-label">執行醫師</label>
     <select id="doctorSelect">
-      <option value="邱芳瑋">邱芳瑋 醫師</option>
-      <option value="胡必雄">胡必雄 醫師</option>
       <option value="賴佳業">賴佳業 醫師</option>
+      <option value="胡必雄">胡必雄 醫師</option>
       <option value="翁偉銘">翁偉銘 醫師</option>
     </select>
 
@@ -127,7 +126,6 @@
     <select id="consentType">
       <option value="胃鏡">胃鏡檢查同意書</option>
       <option value="大腸鏡">大腸鏡檢查同意書</option>
-      <option value="痔瘡結紮">痔瘡結紮手術同意書</option>
     </select>
     
     <button onclick="toStep2()">下一步：閱讀條文</button>
@@ -193,7 +191,7 @@
   <script>
     // 🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟
     // 請將下方引號內的網址，換成您剛剛重新部署「主系統GAS」獲得的 /exec 網址
-    const API_URL = "https://script.google.com/macros/s/AKfycbzPr9iaO6jESxJGhxiHddy2BKK0yvdxXIoxT4XCjNYlfu0O6nsX02-uUzy8apGf1f85Mw/exec"; 
+    const API_URL = "https://script.google.com/macros/s/AKfycbxGdZX9t2e3vzxgHljw9bTwOTEv3rop2qjWg41sXKYC46li6UgmjibYoJROb1XNKtcxTw/exec"; 
     // 🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟
 
     // --- 打造我們自己的通訊器 (取代 google.script.run) ---
@@ -279,14 +277,22 @@
     var consentItemsData = {
       "胃鏡": [
         { id: "item_package", label: "好腸胃套餐", textColor: "text-maroon", subtext: "包含無痛、口咬器、幽門桿菌與好腸胃抽血套餐" },
-        { id: "item_bite", label: "拋棄式口咬器~100元", subtext: "有活動式假牙，請記得取出" },
-        { id: "item_thin", label: "超細胃鏡~500元", subtext: "口徑小，舒適度較高，可以從鼻子" },
-        { id: "item_hp", label: "幽門螺旋桿菌檢查~400元" },
+        
+        // --- 經口胃鏡類別 ---
+        { id: "item_oral", label: "經口胃鏡", isParent: true }, 
+        { id: "item_bite", label: "拋棄式口咬器~100元", subtext: "有活動式假牙，請記得取出", isChild: true },
+        { id: "item_thin", label: "超細胃鏡~500元", subtext: "口徑小，舒適度較高，可以從鼻子進", isChild: true },
+        { id: "item_nasal", label: "經鼻細鏡", isParent: true },
+        
+        { id: "item_hp", label: "幽門螺旋桿菌檢查~350元" },
+        
+        // --- 切片與止血類別 ---
         { id: "item_biopsy", label: "同意做組織切片檢查或瘜肉切除術", isParent: true },
-        { id: "item_clip", label: "拋棄式止血夾~900元/支", isChild: true },
+        { id: "item_clip", label: "拋棄式止血夾~800元/支", isChild: true },
         { id: "item_needle", label: "自費拋棄式止血針~800元/次", subtext: "有使用才收費", isChild: true },
+        
         { id: "item_refuse", label: "拒絕病理切片檢查", textColor: "text-maroon" },
-        { id: "item_painless", label: "無痛胃鏡檢查~2600元", subtext: "含拋棄式口咬器、無痛檢查術後2~3小時不適合開車或騎車" }
+        { id: "item_painless", label: "無痛胃鏡檢查~3000元", subtext: "含拋棄式口咬器、無痛檢查術後2~3小時不適合開車或騎車" }
       ],
       "大腸鏡": [
         { id: "pre_ht", label: "高血壓", isPrecaution: true },
@@ -296,14 +302,19 @@
         { id: "pre_surgery", label: "腹腔手術病史", isPrecaution: true },
         { id: "pre_prostate", label: "攝護腺肥大", isPrecaution: true },
         { id: "pre_glaucoma", label: "青光眼", isPrecaution: true },
+        
         { id: "item_package", label: "好腸胃套餐", textColor: "text-maroon", subtext: "包含無痛、檢查褲、CO2充氣與好腸胃抽血套餐" },
         { id: "item_pants", label: "拋棄式檢查褲~100元" },
         { id: "item_co2", label: "二氧化碳CO2大腸鏡充氣~300元", subtext: "可以大幅降低大腸鏡後腹脹不適" },
+        
+        // --- 大腸鏡切片類別 ---
         { id: "item_biopsy", label: "同意做組織切片檢查或瘜肉切除術", isParent: true },
-        { id: "item_clip", label: "拋棄式止血夾(傷口縫合)~900元/支", isChild: true },
-        { id: "item_needle", label: "拋棄式止血針~800元", subtext: "大於1公分瘜肉需要將黏膜打腫後再切除，也有可能會用到", isChild: true },
-        { id: "item_painless", label: "無痛大腸鏡檢查~3600元", subtext: "含AI內視鏡輔助、拋棄式檢查褲、二氧化碳CO2大腸鏡充氣，無痛檢查術後2~3小時不適合開車或騎車" }
-      ],
+        { id: "item_clip", label: "拋棄式止血夾(傷口縫合)~800元/支", isChild: true },
+        { id: "item_needle", label: "拋棄式止血針~800元", subtext: "大於1公分瘜肉需要將黏膜打腫後再切除", isChild: true },
+        
+        { id: "item_painless", label: "無痛大腸鏡檢查~4000元", subtext: "含AI內視鏡輔助、拋棄式檢查褲、二氧化碳CO2大腸鏡充氣" }
+      ]
+    };
       "痔瘡結紮": [
         { id: "item_pants", label: "拋棄式檢查褲~100元" }
       ]
