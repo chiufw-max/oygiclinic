@@ -315,10 +315,6 @@
         { id: "item_painless", label: "無痛大腸鏡檢查~4000元", subtext: "含AI內視鏡輔助、拋棄式檢查褲、二氧化碳CO2大腸鏡充氣" }
       ]
     };
-      "痔瘡結紮": [
-        { id: "item_pants", label: "拋棄式檢查褲~100元" }
-      ]
-    };
 
     // --- 2. 畫布邏輯 ---
     var canvas = document.getElementById('sig-canvas');
@@ -407,7 +403,7 @@
       var idRegex = /^[A-Z]{1,2}[0-9]{8,9}$/;
 
       if (!medNo) return alert("請輸入病歷號！");
-      if (!name || !pId || !rel || !phone) return alert("請填寫所有必填欄位！");
+      if (!name || !pId || !rel) return alert("請填寫所有必填欄位！");
       if (rel !== '本人' && !sId) return alert("請填寫立同意書人身分證字號！");
 
       currentData = {
