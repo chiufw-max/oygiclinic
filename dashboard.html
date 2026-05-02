@@ -247,7 +247,7 @@
         localStorage.setItem("dashboard_clinic_token", currentToken);
       }
 
-      // 這裡會自動把 action, token(9911), 和其他參數打包送給後端
+      // 這裡會自動把 action, token(1216), 和其他參數打包送給後端
       const payload = { action: action, token: currentToken, ...params };
       try {
         const response = await fetch(API_URL, {
