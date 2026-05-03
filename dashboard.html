@@ -543,7 +543,6 @@
     function submitColonoscopy() {
       const pDose = document.getElementById('val-p').innerText;
       const dDose = document.getElementById('val-d').innerText;
-      if (!pDose || !dDose) return alert("請輸入 P 與 D 的麻醉劑量！");
       closeColonModal();
       executeComplete(pDose, dDose, null); 
     }
