@@ -311,7 +311,7 @@
         { id: "item_biopsy", label: "同意做組織切片檢查或瘜肉切除術", isParent: true },
         { id: "item_clip", label: "拋棄式止血夾(傷口縫合)~800元/支", isChild: true },
         { id: "item_needle", label: "拋棄式止血針~800元", subtext: "大於1公分瘜肉需要將黏膜打腫後再切除", isChild: true },
-        
+        { id: "item_refuse", label: "拒絕病理切片檢查", textColor: "text-maroon" },
         { id: "item_painless", label: "無痛大腸鏡檢查~4000元", subtext: "含AI內視鏡輔助、拋棄式檢查褲、二氧化碳CO2大腸鏡充氣" }
       ]
     };
@@ -471,7 +471,7 @@
         
         if (type === '胃鏡') {
           // 連動胃鏡的 3 個項目
-          ['item_bite', 'item_hp', 'item_painless'].forEach(t => {
+          ['item_oral', 'item_bite', 'item_hp', 'item_painless'].forEach(t => {
             if(document.getElementById(t)) document.getElementById(t).checked = isChecked;
           });
         } else if (type === '大腸鏡') {
