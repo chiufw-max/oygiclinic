@@ -429,11 +429,39 @@
         return;
       }
 
+      const patientHistory = {};
+      const historyList = ["高血壓", "心臟病", "服用抗凝血藥物", "藥物過敏", "腹腔手術病史", "攝護腺肥大", "青光眼"];
+      patients.forEach(p => {
+        if (!patientHistory[p.idNo]) patientHistory[p.idNo] = new Set();
+        if (p.allItems) {
+          historyList.forEach(h => {
+            if (p.allItems.includes(h)) patientHistory[p.idNo].add(h);
+          });
+        }
+      });
+
       patients.forEach(p => {
         let labIconHtml = "";
         if (p.labTests) {
           if (p.labTests.includes("血")) labIconHtml += `<span style="font-size: 18px; margin-left: 5px;" title="需抽血">🩸</span>`;
           if (p.labTests.includes("尿")) labIconHtml += `<span style="font-size: 18px; margin-left: 5px;" title="需驗尿">🧪</span>`;
+        }
+
+        let historyHtml = "";
+        if (patientHistory[p.idNo] && patientHistory[p.idNo].size > 0) {
+          patientHistory[p.idNo].forEach(h => {
+            let tagText = "";
+            
+            // 👇 將原本的 ! 換成 ⚠️
+            if (h === "心臟病") tagText = "⚠️心";
+            else if (h === "攝護腺肥大") tagText = "⚠️攝";
+            else if (h === "青光眼") tagText = "⚠️青";
+            
+            // 有配對到的才產生標籤
+            if (tagText !== "") {
+              historyHtml += `<span style="font-size: 16px; font-weight: bold; padding: 2px 6px; border-radius: 6px; border: 1px solid #e74c3c; background: #fdedec; color: #e74c3c; white-space: nowrap;">${tagText}</span>`;
+            }
+          });
         }
 
         let card = `
@@ -448,7 +476,10 @@
               </div>
             </div>
             <div class="card-body">
-              <div class="patient-name">${p.name}</div>
+              <div class="patient-name" style="display: flex; align-items: center; flex-wrap: wrap; gap: 6px; line-height: 1.2;">
+                <span>${p.name}</span>
+                ${historyHtml}
+              </div>
               <div class="patient-id">${p.idNo}</div>
               <div class="tags">${parseTags(p.allItems)}</div>
             </div>
@@ -583,6 +614,7 @@
     }
 
     let currentEditRow = null; let currentEditType = null;
+    let currentAllItems = "";
     const dashItemsData = {
       "胃鏡": [
         { id: "item_package", label: "好腸胃套餐" },
@@ -607,6 +639,7 @@
 
     function openEditModal(row, type, allItemsStr) {
       currentEditRow = row; currentEditType = type;
+      currentAllItems = allItemsStr;
       document.getElementById('edit-modal-name').innerText = type + " 項目";
       const container = document.getElementById('edit-checkbox-container'); container.innerHTML = '';
       const items = dashItemsData[type] || [];
@@ -622,6 +655,10 @@
     function saveEditItems() {
       const items = dashItemsData[currentEditType] || []; const checkedLabels = [];
       items.forEach(item => { const cb = document.getElementById('edit_' + item.id); if (cb && cb.checked) checkedLabels.push(item.label); });
+      const historyList = ["高血壓", "心臟病", "服用抗凝血藥物", "藥物過敏", "腹腔手術病史", "攝護腺肥大", "青光眼"];
+      historyList.forEach(h => {
+        if (currentAllItems.includes(h)) checkedLabels.push(h);
+      });
       const newItemsStr = checkedLabels.join('、');
       
       document.getElementById('loadingOverlay').style.display = 'flex';
