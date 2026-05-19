@@ -154,7 +154,9 @@
 
     <div class="column-right">
       <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid rgba(255,255,255,0.8); padding-bottom: 15px; margin-bottom: 15px;">
-        <h2 style="color: #2c3e50; margin: 0; font-weight: 800;">📅 日曆預排 (依時段顯示)</h2>
+        <h2 style="color: #2c3e50; margin: 0; font-weight: 800;">
+          📅 日曆預排 <span id="calendar-date" style="font-size: 22px; color: #7f8c8d; font-weight: bold; margin-left: 8px;"></span>
+        </h2>
         <span style="font-size: 14px; color: #7f8c8d;">(點擊項目可標記完成)</span>
       </div>
       <div id="calendar-list">載入排程中...</div>
@@ -292,6 +294,11 @@
     };
 
     function initDashboard() {
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      document.getElementById('calendar-date').innerText = `(${yyyy}/${mm}/${dd})`;
       loadPatients();
       loadCalendar(); 
       setInterval(function() {
