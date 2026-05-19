@@ -121,6 +121,8 @@
     .edit-modal-content h2 { color: #2c3e50; border-bottom: 2px solid #eee; padding-bottom: 15px; margin-top: 0; text-align: center; }
     .edit-check-item { margin-bottom: 15px; font-size: 22px; background: #f8f9fa; padding: 12px 15px; border-radius: 12px; display: flex; align-items: center; cursor: pointer; }
     .edit-check-item input { width: 28px; height: 28px; margin-right: 15px; cursor: pointer; }
+    .btn-qty { background: #fff; border: 1px solid #ccc; border-radius: 50%; width: 36px; height: 36px; font-size: 18px; cursor: pointer; display: flex; justify-content: center; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); user-select: none; }
+    .btn-qty:active { background: #e0e0e0; }
   </style>
 </head>
 <body>
@@ -165,10 +167,33 @@
 
   <div id="dose-modal" class="modal-overlay">
     <div class="modal-content">
-      <h2><span id="modal-name" style="color:#e67e22;"></span> 的大腸鏡劑量</h2>
+      <h2><span id="modal-name" style="color:#e67e22;"></span> 的大腸鏡結案登記</h2>
+      
+      <div style="background: #fdf2e9; padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #f5cba7;">
+        <div style="text-align:center; color:#d35400; font-weight:bold; margin-bottom: 12px; font-size: 16px;">🩸 耗材使用數量 (無施作請保持 0)</div>
+        <div style="display: flex; justify-content: space-around; align-items: center;">
+          <div style="text-align: center;">
+            <div style="color: #7f8c8d; font-weight: bold; margin-bottom: 8px;">止血夾</div>
+            <div style="display: flex; align-items: center; justify-content: center; gap: 15px;">
+              <button type="button" style="background: #fff; border: 1px solid #ccc; border-radius: 50%; width: 36px; height: 36px; font-size: 18px; cursor: pointer; color:#333;" onclick="adjustQty('clip', -1)">➖</button>
+              <div id="val-clip" style="font-size: 26px; font-weight: bold; width: 30px; color: #2c3e50; text-align: center;">0</div>
+              <button type="button" style="background: #fff; border: 1px solid #ccc; border-radius: 50%; width: 36px; height: 36px; font-size: 18px; cursor: pointer; color:#333;" onclick="adjustQty('clip', 1)">➕</button>
+            </div>
+          </div>
+          <div style="text-align: center;">
+            <div style="color: #7f8c8d; font-weight: bold; margin-bottom: 8px;">止血針</div>
+            <div style="display: flex; align-items: center; justify-content: center; gap: 15px;">
+              <button type="button" style="background: #fff; border: 1px solid #ccc; border-radius: 50%; width: 36px; height: 36px; font-size: 18px; cursor: pointer; color:#333;" onclick="adjustQty('needle', -1)">➖</button>
+              <div id="val-needle" style="font-size: 26px; font-weight: bold; width: 30px; color: #2c3e50; text-align: center;">0</div>
+              <button type="button" style="background: #fff; border: 1px solid #ccc; border-radius: 50%; width: 36px; height: 36px; font-size: 18px; cursor: pointer; color:#333;" onclick="adjustQty('needle', 1)">➕</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="input-row">
         <div class="fake-input-wrap active" id="wrap-val-p" onclick="setActiveInput('val-p', 'wrap-val-p')"><label>P 劑量 (ml)</label><div class="fake-val" id="val-p"></div></div>
-        <div class="fake-input-wrap" id="wrap-val-d" onclick="setActiveInput('val-d', 'wrap-val-d')"><label>D 劑量 (ml)</label><div class="fake-val" id="val-d"></div></div>
+        <div class="fake-input-wrap" id="wrap-val-d" onclick="setActiveInput('val-d', 'wrap-val-d')"><label>D 劑量 (mg)</label><div class="fake-val" id="val-d"></div></div>
       </div>
       <div class="keypad">
         <button class="key" onclick="typeNum('1')">1</button><button class="key" onclick="typeNum('2')">2</button><button class="key" onclick="typeNum('3')">3</button>
@@ -517,6 +542,8 @@
         document.getElementById('dose-modal').style.display = 'flex';
         document.getElementById('val-p').innerText = ''; 
         document.getElementById('val-d').innerText = '';
+        document.getElementById('val-clip').innerText = '0';
+        document.getElementById('val-needle').innerText = '0';
         setActiveInput('val-p', 'wrap-val-p');
       } else if (type === '胃鏡') {
         document.getElementById('gastro-modal-name').innerText = name;
@@ -581,11 +608,15 @@
     function submitColonoscopy() {
       const pDose = document.getElementById('val-p').innerText;
       const dDose = document.getElementById('val-d').innerText;
+
+      const clipQty = document.getElementById('val-clip') ? document.getElementById('val-clip').innerText : '0';
+      const needleQty = document.getElementById('val-needle') ? document.getElementById('val-needle').innerText : '0';
+      
       closeColonModal();
-      executeComplete(pDose, dDose, null); 
+      executeComplete(pDose, dDose, null, clipQty, needleQty); 
     }
 
-    function executeComplete(pDose, dDose, hpStatus) {
+    function executeComplete(pDose, dDose, hpStatus, clipQty = '0', needleQty = '0') {
       document.getElementById('loadingOverlay').style.display = 'flex';
       
       callGAS("completeExam", { 
@@ -593,7 +624,9 @@
         type: currentType, 
         pDose: pDose, 
         dDose: dDose, 
-        hpStatus: hpStatus 
+        hpStatus: hpStatus,
+        clipQty: clipQty,
+        needleQty: needleQty 
       })
       .then(res => {
         document.getElementById('loadingOverlay').style.display = 'none';
@@ -671,6 +704,13 @@
         .catch(err => {
           document.getElementById('loadingOverlay').style.display = 'none'; alert("網路失敗：" + err.message);
         });
+    }
+
+    function adjustQty(type, amount) {
+      const el = document.getElementById('val-' + type);
+      let newVal = parseInt(el.innerText) + amount;
+      if (newVal < 0) newVal = 0; // 不允許負數
+      el.innerText = newVal;
     }
   </script>
 </body>
