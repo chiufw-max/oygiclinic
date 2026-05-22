@@ -159,7 +159,10 @@
         <h2 style="color: #2c3e50; margin: 0; font-weight: 800;">
           📅 日曆預排 <span id="calendar-date" style="font-size: 22px; color: #7f8c8d; font-weight: bold; margin-left: 8px;"></span>
         </h2>
-        <span style="font-size: 14px; color: #7f8c8d;">(點擊項目可標記完成)</span>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <button id="cal-view-btn" onclick="toggleCalendarView()" style="background: #ecf0f1; border: 1px solid #bdc3c7; border-radius: 6px; padding: 6px 12px; cursor: pointer; color: #2c3e50; font-weight: bold; transition: 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">顯示全天</button>
+          <span style="font-size: 14px; color: #7f8c8d;">(點擊標記完成)</span>
+        </div>
       </div>
       <div id="calendar-list">載入排程中...</div>
     </div>
@@ -301,6 +304,7 @@
     let currentRow, currentType;
     let activeInputId = 'val-p'; 
     let selectedHp = '有'; 
+    let showAllDayCalendar = localStorage.getItem('dashboard_cal_view') === 'allDay';
 
     window.onload = function() {
       // 確保一開始就觸發密碼檢查
@@ -356,6 +360,11 @@
     }
 
     function renderCalendar(response) {
+      window.lastCalendarData = response;
+      
+      // 🌟 核心修正 2：每次重新整理渲染時，強制同步最新記憶狀態，確保重新整理不重置！
+      showAllDayCalendar = localStorage.getItem('dashboard_cal_view') === 'allDay';
+      
       const container = document.getElementById('calendar-list');
       const s = response.data;
       const getSectionHtml = (title, list, colorClass) => {
@@ -385,13 +394,22 @@
 
       const currentHour = new Date().getHours();
       let finalHtml = "";
+
+      const btn = document.getElementById('cal-view-btn');
+      if(btn) btn.innerText = showAllDayCalendar ? "切換為當前診段" : "顯示全天";
       
-      if (currentHour < 13) {
+      if (showAllDayCalendar) {
         finalHtml += getSectionHtml("☀️ 早診 (08:00-12:00)", s.morning, "tag-morning");
-      } else if (currentHour >= 13 && currentHour < 18) {
         finalHtml += getSectionHtml("⛅ 午診 (15:00-17:30)", s.afternoon, "tag-afternoon");
-      } else {
         finalHtml += getSectionHtml("🌙 晚診 (18:00-21:00)", s.evening, "tag-evening");
+      } else {
+        if (currentHour < 13) {
+          finalHtml += getSectionHtml("☀️ 早診 (08:00-12:00)", s.morning, "tag-morning");
+        } else if (currentHour >= 13 && currentHour < 18) {
+          finalHtml += getSectionHtml("⛅ 午診 (15:00-17:30)", s.afternoon, "tag-afternoon");
+        } else {
+          finalHtml += getSectionHtml("🌙 晚診 (18:00-21:00)", s.evening, "tag-evening");
+        }
       }
 
       if (!finalHtml) finalHtml = "<p style='text-align:center; color:#7f8c8d; margin-top:50px; font-weight:bold;'>目前時段無預約排程</p>";
