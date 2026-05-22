@@ -116,7 +116,8 @@
     </div>
     
     <label class="field-label">執行醫師</label>
-    <select id="doctorSelect">
+    <select id="doctorSelect" required style="width: 100%; padding: 10px; font-size: 18px;">
+      <option value="" disabled selected hidden>請選擇執行醫師</option>
       <option value="賴佳業">賴佳業 醫師</option>
       <option value="陳正哲">陳正哲 醫師</option>
       <option value="翁偉銘">翁偉銘 醫師</option>
@@ -144,6 +145,7 @@
 
   <div id="step3" class="layer">
     <h2>3. 確認勾選並簽名</h2>
+    <div id="patient-info-summary" style="background:#f8f9fa; padding:15px; border-radius:8px; margin-bottom:15px; font-size:16px; border-left:5px solid #3498db; line-height: 1.6;"></div>
     <div class="summary-box"><strong>已勾選項目：</strong><div id="checkedSummary"></div></div>
     <p style="color: #c0392b; font-weight: bold;">本人已充分閱讀並了解處置內容及風險，確認上述資料無誤。</p>
     <canvas id="sig-canvas"></canvas>
@@ -163,10 +165,9 @@
 
   <div id="step5" class="layer" style="border-top: 8px solid #3498db; background-color: #ebf5fb;">
     <h2 style="color: #2980b9;">⚕️ 護理人員確認專區</h2>
-    <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #bdc3c7;">
-      <p style="margin: 0; font-size: 18px;"><strong>病患姓名：</strong><span id="nurse-patient-name" style="color: #e67e22;"></span></p>
-      <p style="margin: 5px 0 0 0; font-size: 18px;"><strong>檢查項目：</strong><span id="nurse-exam-type"></span></p>
-    </div>
+    
+    <div id="nurse-patient-summary" style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #bdc3c7; border-left: 6px solid #2980b9; font-size: 18px; line-height: 1.6;">
+      </div>
 
     <h3 style="color: #2c3e50; margin-top: 25px;">加選檢驗標記 (將顯示於二樓)</h3>
     <div class="card-group" style="border-left-color: #e74c3c; background: #fff; border: 1px solid #bdc3c7; border-radius: 8px; padding: 5px 15px;">
@@ -176,7 +177,6 @@
     </div>
 
     <button onclick="saveAll()" style="background: #2980b9;">📥 確認送出並存檔</button>
-    <button class="btn-secondary" onclick="toStep(4)">返回上一頁</button>
   </div>
 
   <div id="step6" class="layer" style="text-align:center;">
@@ -400,17 +400,19 @@
       var pId = document.getElementById('idNo').value.trim().toUpperCase();
       var sId = document.getElementById('signerIdNo').value.trim().toUpperCase();
       var rel = document.getElementById('relationSelect').value;
+      var doctor = document.getElementById('doctorSelect').value;
       var idRegex = /^[A-Z]{1,2}[0-9]{8,9}$/;
 
       if (!medNo) return alert("請輸入病歷號！");
-      if (!name || !pId || !rel) return alert("請填寫所有必填欄位！");
+      if (!name || !pId || !rel || !phone) return alert("請填寫所有必填欄位！");
       if (rel !== '本人' && !sId) return alert("請填寫立同意書人身分證字號！");
+      if (!doctor) return alert("請選擇執行醫師！");
 
       currentData = {
         medRecordNo: medNo,
         name: name, idNo: pId, signerIdNo: sId, phone: document.getElementById('phone').value,
         type: document.getElementById('consentType').value,
-        doctor: document.getElementById('doctorSelect').value,
+        doctor: doctor,
         relation: (rel === '其他') ? document.getElementById('relationCustom').value : rel
       };
 
@@ -484,18 +486,50 @@
     }
 
     function toStep3() {
+      // 1. 🌟 保留您原本最完美的資料綁定與標籤生成邏輯
       currentData.checkItems = {};
       currentData.checkItemLabels = {};
       var summary = "";
-      consentItemsData[currentData.type].forEach(item => {
-        var chk = document.getElementById(item.id);
-        if (chk && chk.checked) {
-          currentData.checkItems[item.id] = true;
-          currentData.checkItemLabels[item.id] = item.label;
-          summary += `<span class="summary-tag" style="${item.isPrecaution?'background:#e67e22':''}">${item.label}</span>`;
-        } else { currentData.checkItems[item.id] = false; }
-      });
-      document.getElementById('checkedSummary').innerHTML = summary || "無勾選項目";
+      
+      if (consentItemsData && consentItemsData[currentData.type]) {
+        consentItemsData[currentData.type].forEach(item => {
+          var chk = document.getElementById(item.id);
+          if (chk && chk.checked) {
+            currentData.checkItems[item.id] = true;
+            currentData.checkItemLabels[item.id] = item.label;
+            // 完美恢復您的 .summary-tag 以及橘色警示判斷
+            summary += `<span class="summary-tag" style="${item.isPrecaution ? 'background:#e67e22' : ''}">${item.label}</span>`;
+          } else { 
+            currentData.checkItems[item.id] = false; 
+          }
+        });
+      }
+      
+      document.getElementById('checkedSummary').innerHTML = summary || "<span style='color:#7f8c8d;'>無加選或病史項目</span>";
+
+
+      // 2. 👇 新增：在畫面上方動態生成病患核對總表
+      var name = currentData.name || document.getElementById('name').value.trim();
+      var medNo = currentData.medRecordNo || document.getElementById('medRecordNo').value.trim();
+      var pId = currentData.idNo || document.getElementById('idNo').value.trim().toUpperCase();
+      var sId = currentData.signerIdNo || document.getElementById('signerIdNo').value.trim().toUpperCase();
+      var rel = currentData.relation || document.getElementById('relationSelect').value;
+
+      var signerStr = "";
+      if (rel !== '本人' && rel !== "") {
+        signerStr = `<br><span style="color:#e74c3c;"><strong>簽署人關係：</strong>${rel} &nbsp;&nbsp;|&nbsp;&nbsp; <strong>簽署人身分證：</strong>${sId}</span>`;
+      }
+
+      var infoSummary = document.getElementById('patient-info-summary');
+      if (infoSummary) {
+        infoSummary.innerHTML = `
+          <strong>病患姓名：</strong><span style="color:#2980b9;">${name}</span> &nbsp;&nbsp;|&nbsp;&nbsp; <strong>病歷號：</strong>${medNo} <br>
+          <strong>身分證字號：</strong>${pId} 
+          ${signerStr}
+        `;
+      }
+
+      // 3. 切換到第三頁
       toStep(3);
     }
 
@@ -551,18 +585,54 @@
     
     // 進入護理師專區 (Step 5)
     function toStep5() {
-      document.getElementById('nurse-patient-name').innerText = currentData.name;
-      document.getElementById('nurse-exam-type').innerText = currentData.type;
-      
-      // 清空前一位的勾選
-      document.getElementById('test_adult').checked = false;
-      document.getElementById('test_gi').checked = false;
-      document.getElementById('test_blood').checked = false;
+      try {
+        // 1. 安全抓取基本資料
+        var name = (typeof currentData !== 'undefined' && currentData.name) ? currentData.name : "未填寫 (測試中)";
+        var idNo = (typeof currentData !== 'undefined' && currentData.idNo) ? currentData.idNo : "未填寫";
+        var medNo = (typeof currentData !== 'undefined' && currentData.medRecordNo) ? currentData.medRecordNo : "未填寫";
+        var type = (typeof currentData !== 'undefined' && currentData.type) ? currentData.type : "未選擇";
 
-      if (currentData.checkItems && currentData.checkItems['item_package']) {
-        document.getElementById('test_gi').checked = true;
+        // 2. 直接從系統記憶中撈取剛剛勾選的項目
+        var itemsStr = "無加選或病史項目";
+        if (typeof currentData !== 'undefined' && currentData.checkItemLabels) {
+          var labels = Object.values(currentData.checkItemLabels);
+          if (labels.length > 0) {
+            itemsStr = labels.join('、<br>');
+          }
+        }
+
+        // 3. 填入護理師核對總表 (👇 這裡加入了排版與修改按鈕)
+        var summaryDiv = document.getElementById('nurse-patient-summary');
+        if (summaryDiv) {
+          summaryDiv.innerHTML = `
+            <strong>病患姓名：</strong><span style="color: #e67e22; font-weight:bold;">${name}</span><br>
+            <strong>檢查項目：</strong>${type}<br>
+            <strong>病歷號：</strong>${medNo} &nbsp;&nbsp;|&nbsp;&nbsp; <strong>身分證字號：</strong>${idNo}
+            <div style="margin-top:12px; padding-top:12px; border-top: 2px dashed #bdc3c7;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <strong>☑️ 病患已勾選確認項目：</strong>
+                <button onclick="clearSig(); toStep(2);" style="width: auto; min-width: 0; height: auto; background: transparent; color: #e67e22; border: 1px solid #e67e22; padding: 2px 8px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold; white-space: nowrap; margin: 0;">修改</button>
+              </div>
+              <span style="color: #27ae60; font-weight: bold; line-height: 1.8;">${itemsStr}</span>
+            </div>
+          `;
+        }
+
+        // 4. 清空前一位的加選檢驗標記
+        if(document.getElementById('test_adult')) document.getElementById('test_adult').checked = false;
+        if(document.getElementById('test_gi')) document.getElementById('test_gi').checked = false;
+        if(document.getElementById('test_blood')) document.getElementById('test_blood').checked = false;
+
+        // 如果病患有買套餐，自動幫護理師勾選「好腸胃套餐(血+尿)」
+        if (typeof currentData !== 'undefined' && currentData.checkItems && currentData.checkItems['item_package']) {
+          if(document.getElementById('test_gi')) document.getElementById('test_gi').checked = true;
+        }
+
+      } catch(e) {
+        console.log("護理師資料抓取發生錯誤:", e);
       }
-      
+
+      // 安全切換到第 5 頁
       toStep(5);
     }
 
