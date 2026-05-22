@@ -348,6 +348,14 @@
       calCol.classList.toggle('hidden');
     }
 
+    function toggleCalendarView() {
+      showAllDayCalendar = !showAllDayCalendar;
+      localStorage.setItem('dashboard_cal_view', showAllDayCalendar ? 'allDay' : 'session');
+      if (window.lastCalendarData) {
+        renderCalendar(window.lastCalendarData); 
+      }
+    }
+
     function loadCalendar() {
       document.getElementById('calendar-list').innerHTML = "載入排程中...";
       callGAS("getCalendarEvents")
