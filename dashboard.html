@@ -323,11 +323,6 @@
     };
 
     function initDashboard() {
-      const today = new Date();
-      const yyyy = today.getFullYear();
-      const mm = String(today.getMonth() + 1).padStart(2, '0');
-      const dd = String(today.getDate()).padStart(2, '0');
-      document.getElementById('calendar-date').innerText = `(${yyyy}/${mm}/${dd})`;
       loadPatients();
       loadCalendar(); 
       setInterval(function() {
@@ -357,6 +352,14 @@
     }
 
     function loadCalendar() {
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      const dateEl = document.getElementById('calendar-date');
+      if (dateEl) {
+        dateEl.innerText = `(${yyyy}/${mm}/${dd})`;
+      }
       document.getElementById('calendar-list').innerHTML = "載入排程中...";
       callGAS("getCalendarEvents")
         .then(res => {
