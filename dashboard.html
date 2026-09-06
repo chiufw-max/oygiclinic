@@ -63,7 +63,15 @@
     .type-大腸鏡 .type-badge { background: #fdf2e9; color: #e67e22; }
     
     .patient-name { font-size: 36px; font-weight: bold; color: #2c3e50; margin-bottom: 5px; }
-    .patient-id { font-size: 22px; color: #7f8c8d; margin-bottom: 20px; }
+    .patient-id { font-size: 22px; color: #7f8c8d; margin-bottom: 20px; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+    .pid-btn { cursor: pointer; padding: 4px 10px; border-radius: 10px; border: 1px dashed #bdc3c7; background: #fafafa; transition: 0.1s; user-select: none; }
+    .pid-btn:active { transform: scale(0.95); background: #ecf0f1; }
+    .pid-empty { color: #e74c3c; }
+    .pid-sep { color: #bdc3c7; }
+    .pid-field { margin-bottom: 20px; text-align: left; }
+    .pid-field label { display: block; font-size: 22px; color: #2c3e50; font-weight: bold; margin-bottom: 8px; }
+    .pid-field input { width: 100%; box-sizing: border-box; height: 70px; font-size: 32px; padding: 0 18px; border: 2px solid #bdc3c7; border-radius: 15px; font-family: monospace; letter-spacing: 2px; }
+    .pid-field input:focus { border-color: #3498db; outline: none; }
     
     .tags { display: flex; flex-wrap: wrap; gap: 10px; margin-top: auto; margin-bottom: 25px; min-height: 45px; }
     .tag { padding: 8px 16px; border-radius: 15px; font-size: 20px; font-weight: bold; background: #ecf0f1; color: #34495e; }
@@ -260,6 +268,25 @@
       <div class="modal-btns">
         <button class="btn-cancel" onclick="closeEditModal()">取消</button>
         <button class="btn-confirm" style="background:#27ae60;" onclick="saveEditItems()">儲存修改</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="pid-modal" class="modal-overlay">
+    <div class="edit-modal-content">
+      <h2>修正 <span id="pid-modal-name" style="color:#3498db;"></span> 的基本資料</h2>
+      <div class="pid-field">
+        <label>身分證字號</label>
+        <input type="text" id="pid-idNo" maxlength="10" autocomplete="off" autocapitalize="characters" oninput="this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '')">
+      </div>
+      <div class="pid-field">
+        <label>病歷號</label>
+        <input type="text" id="pid-medNo" inputmode="numeric" autocomplete="off" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+      </div>
+      <p style="font-size: 16px; color: #95a5a6; text-align: left; margin: 0 0 20px;">※ 同一位病人今天的胃鏡／大腸鏡卡片會一併更新</p>
+      <div class="modal-btns">
+        <button class="btn-cancel" onclick="closePidModal()">取消</button>
+        <button class="btn-confirm" style="background:#3498db;" onclick="savePidModal()">儲存</button>
       </div>
     </div>
   </div>
@@ -534,7 +561,11 @@
                 <span>${p.name}</span>
                 ${historyHtml}
               </div>
-              <div class="patient-id">${p.idNo}</div>
+              <div class="patient-id">
+                <span class="pid-btn" onclick="openPidModal(${p.row}, '${p.name}', '${p.idNo || ''}', '${p.medNo || ''}', 'pid-idNo')" title="點擊修正身分證字號">${p.idNo || '<span class="pid-empty">未填身分證</span>'}</span>
+                <span class="pid-sep">｜</span>
+                <span class="pid-btn" onclick="openPidModal(${p.row}, '${p.name}', '${p.idNo || ''}', '${p.medNo || ''}', 'pid-medNo')" title="點擊修正病歷號">${p.medNo || '<span class="pid-empty">未填病歷號</span>'}</span>
+              </div>
               <div class="tags">${parseTags(p.allItems)}</div>
             </div>
             <button class="btn-complete" onclick="handleComplete(${p.row}, '${p.type}', '${p.name}')">
@@ -713,6 +744,33 @@
     }
 
     function closeEditModal() { document.getElementById('edit-modal').style.display = 'none'; }
+
+    // ===== 修正身分證字號 / 病歷號 =====
+    let currentPidRow = null;
+    function openPidModal(row, name, idNo, medNo, focusId) {
+      currentPidRow = row;
+      document.getElementById('pid-modal-name').innerText = name;
+      document.getElementById('pid-idNo').value = idNo;
+      document.getElementById('pid-medNo').value = medNo;
+      document.getElementById('pid-modal').style.display = 'flex';
+      setTimeout(() => { const el = document.getElementById(focusId); el.focus(); el.select(); }, 50);
+    }
+    function closePidModal() { document.getElementById('pid-modal').style.display = 'none'; currentPidRow = null; }
+    function savePidModal() {
+      const idNo = document.getElementById('pid-idNo').value.trim().toUpperCase();
+      const medNo = document.getElementById('pid-medNo').value.trim();
+      if (!idNo) { alert("身分證字號不可為空"); return; }
+      if (!/^[A-Z][0-9]{9}$/.test(idNo) && !confirm("身分證字號格式看起來不正確（" + idNo + "），確定要儲存嗎？")) return;
+      document.getElementById('loadingOverlay').style.display = 'flex';
+      callGAS("updatePatientInfo", { rowNum: currentPidRow, idNo: idNo, medNo: medNo })
+        .then(res => {
+          document.getElementById('loadingOverlay').style.display = 'none';
+          if (res.status === 'success') { closePidModal(); loadPatients(); } else { alert(res.message); }
+        })
+        .catch(err => {
+          document.getElementById('loadingOverlay').style.display = 'none'; alert("儲存失敗：" + err.message);
+        });
+    }
     
     function saveEditItems() {
       const items = dashItemsData[currentEditType] || []; const checkedLabels = [];
