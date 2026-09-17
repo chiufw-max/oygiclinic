@@ -306,29 +306,47 @@
 
       // 這裡會自動把 action, token(1216), 和其他參數打包送給後端
       const payload = { action: action, token: currentToken, ...params };
-      try {
-        const response = await fetch(API_URL, {
-          method: "POST",
-          redirect: "follow",
-          headers: { "Content-Type": "text/plain;charset=utf-8" },
-          body: JSON.stringify(payload)
-        });
-        const res = await response.json();
-        
-        if (res.status === "error") {
-          if (res.message.includes("密碼錯誤")) {
-            localStorage.removeItem("dashboard_clinic_token");
-            alert("⛔ 密碼錯誤，請重新整理網頁並輸入正確密碼！");
+
+      // 🌟 只有「純讀取」的動作才自動重試（寫入類動作重試可能造成重複產出 PDF）
+      const RETRY_ACTIONS = ["getPendingPatients", "getCalendarEvents"];
+      const maxAttempts = RETRY_ACTIONS.includes(action) ? 3 : 1;
+      let lastErr = null;
+
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          const response = await fetch(API_URL, {
+            method: "POST",
+            redirect: "follow",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify(payload)
+          });
+          // 🌟 先拿文字再解析：Google 偶而會回一頁 HTML（暫時性錯誤頁），Safari 直接 .json() 會丟出
+          //    「The string did not match the expected pattern」這種看不懂的訊息
+          const text = await response.text();
+          let res;
+          try { res = JSON.parse(text); }
+          catch (e) { throw new Error("Google 伺服器暫時回應異常（非 JSON），請稍後再試"); }
+
+          if (res.status === "error") {
+            if (res.message && res.message.includes("密碼錯誤")) {
+              localStorage.removeItem("dashboard_clinic_token");
+              alert("⛔ 密碼錯誤，請重新整理網頁並輸入正確密碼！");
+            }
+            throw new Error(res.message); // 後端明確回錯，不重試
           }
-          throw new Error(res.message);
+          return res;
+        } catch (err) {
+          lastErr = err;
+          const isBackendError = err.message && !/暫時回應異常|Load failed|Failed to fetch|NetworkError|expected pattern|JSON/i.test(err.message);
+          if (isBackendError || attempt === maxAttempts) break;
+          await new Promise(r => setTimeout(r, 1500 * attempt)); // 1.5s、3s 後再試
         }
-        return res; 
-      } catch (err) {
-        throw err;
       }
+      throw lastErr;
     }
 
     let currentRow, currentType;
+    let lastGoodUpdate = null; // 最後一次成功載入卡片的時間（失敗時用來提示）
     let activeInputId = 'val-p'; 
     let selectedHp = '有'; 
     let showAllDayCalendar = localStorage.getItem('dashboard_cal_view') === 'allDay';
@@ -387,13 +405,18 @@
       if (dateEl) {
         dateEl.innerText = `(${yyyy}/${mm}/${dd})`;
       }
-      document.getElementById('calendar-list').innerHTML = "載入排程中...";
+      const calList = document.getElementById('calendar-list');
+      const hadCalendar = !!calList.querySelector('.event-item, .session-tag');
+      if (!hadCalendar) calList.innerHTML = "載入排程中...";
       callGAS("getCalendarEvents")
         .then(res => {
           if(res.status === "success") renderCalendar(res);
         })
         .catch(err => {
-          document.getElementById('calendar-list').innerHTML = `<p style="color:red;">讀取日曆失敗：${err.message}</p>`;
+          // 🌟 失敗時保留上一次的排程，不清空；只有從沒載入成功過才顯示錯誤
+          if (!hadCalendar) {
+            calList.innerHTML = `<p style="color:#e67e22;">⚠ 暫時讀不到日曆（${err.message}），10 分鐘後會自動重試，或按上方「重新整理」</p>`;
+          }
         });
     }
 
@@ -469,8 +492,14 @@
         })
         .catch(err => {
           console.error(err);
-          document.getElementById('card-container').innerHTML = 
-            `<h2 style="grid-column:1/-1; text-align:center; color:#e74c3c;">載入失敗：${err.message}</h2>`;
+          // 🌟 失敗時保留上一次成功的卡片，不把畫面清空；只在更新時間那行提示
+          const container = document.getElementById('card-container');
+          const timeDisplay = document.getElementById('last-update');
+          if (lastGoodUpdate) {
+            if (timeDisplay) timeDisplay.innerHTML = `<span style="color:#e67e22;">⚠ 更新失敗（${err.message}）— 目前顯示 ${lastGoodUpdate} 的資料，10 分鐘後自動重試，或按「重新整理」</span>`;
+          } else {
+            container.innerHTML = `<h2 style="grid-column:1/-1; text-align:center; color:#e74c3c;">載入失敗：${err.message}<br><span style="font-size:18px; color:#7f8c8d;">請按上方「重新整理」再試一次</span></h2>`;
+          }
         });
     }
 
@@ -503,6 +532,7 @@
       const now = new Date();
       const timeStr = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0') + ":" + now.getSeconds().toString().padStart(2, '0');
       if (timeDisplay) timeDisplay.innerText = "最後更新時間：" + timeStr + " (每 10 分鐘自動刷新)";
+      lastGoodUpdate = timeStr; // 🌟 記住最後一次成功載入的時間
 
       container.innerHTML = '';
       if (patients.length === 0) {
