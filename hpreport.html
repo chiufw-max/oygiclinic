@@ -144,6 +144,40 @@
 
     window.onload = loadList;
 
+    // 🌟 統一通訊：先拿文字再解析（Google 偶而回 HTML 錯誤頁，Safari 直接 .json() 會壞），純讀取動作自動重試 3 次
+    async function callGAS(action, params = {}, retry = false) {
+      const token = localStorage.getItem("hp_clinic_token");
+      const maxAttempts = retry ? 3 : 1;
+      let lastErr = null;
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          const response = await fetch(API_URL, {
+            method: 'POST',
+            redirect: 'follow',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ action: action, token: token, ...params })
+          });
+          const text = await response.text();
+          let res;
+          try { res = JSON.parse(text); }
+          catch (e) { throw new Error("Google 伺服器暫時回應異常（非 JSON）"); }
+          return res;
+        } catch (err) {
+          lastErr = err;
+          if (attempt === maxAttempts) break;
+          await new Promise(r => setTimeout(r, 1500 * attempt));
+        }
+      }
+      throw lastErr;
+    }
+
+    // 🌟 送出後拿不到回應時，回頭查名單：那一列還在「待判讀」嗎？
+    async function isStillPending(row) {
+      const res = await callGAS("getPendingList", {}, true);
+      if (res.status !== 'success') throw new Error(res.message || "讀取名單失敗");
+      return res.data.some(p => p.row === row);
+    }
+
     function loadList() {
       // 🌟 資安機制：從瀏覽器記憶體抓取密碼，如果沒有就跳出視窗詢問
       let currentToken = localStorage.getItem("hp_clinic_token");
@@ -155,14 +189,7 @@
 
       document.getElementById('patient-list').innerHTML = "<h3 style='text-align:center; color: #7f8c8d; margin-top:40px;'>讀取中...</h3>";
       
-      fetch(API_URL, {
-        method: 'POST',
-        redirect: 'follow',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        // 🌟 傳送資料時，把 token 密碼一起打包送給後端檢查
-        body: JSON.stringify({ action: "getPendingList", token: currentToken })
-      })
-      .then(response => response.json())
+      callGAS("getPendingList", {}, true)
       .then(res => {
         if (res.status === 'success') {
           renderList(res.data);
@@ -175,7 +202,7 @@
         }
       })
       .catch(err => {
-        document.getElementById('patient-list').innerHTML = `<h3 style='color:#e74c3c; text-align:center;'>❌ 網路連線錯誤</h3>`;
+        document.getElementById('patient-list').innerHTML = `<h3 style='color:#e74c3c; text-align:center;'>❌ 網路連線錯誤<br><span style="font-size:15px; color:#7f8c8d; font-weight:normal;">${err.message}</span></h3><p style="text-align:center;"><button class="btn-action" onclick="loadList()">重新讀取名單</button></p>`;
       });
     }
 
@@ -234,8 +261,12 @@
     function takeSnapshot() {
       const video = document.getElementById('video');
       const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-      canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+      // 🌟 拍照也縮圖到最長邊 1000px（原本用攝影機原始解析度，一張 2–5MB，上傳很慢容易斷線）
+      let w = video.videoWidth, h = video.videoHeight;
+      const MAX = 1000;
+      if (w > MAX || h > MAX) { const r = MAX / Math.max(w, h); w = Math.round(w * r); h = Math.round(h * r); }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(video, 0, 0, w, h);
       base64Photo = canvas.toDataURL('image/jpeg', 0.8);
       document.getElementById('photoPreview').src = base64Photo;
       document.getElementById('previewContainer').style.display = 'block';
@@ -282,26 +313,29 @@
       document.getElementById('report-modal').style.display = 'none';
       document.getElementById('loading').style.display = 'flex';
 
-      fetch(API_URL, {
-        method: 'POST',
-        redirect: 'follow',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        // 👇 修改後：偷偷把剛剛存在瀏覽器裡的密碼 (token) 一起打包送給後端
-        body: JSON.stringify({ 
-            action: "submitReport", 
-            token: localStorage.getItem("hp_clinic_token"), 
-            payload: currentData 
-        })
-      })
-      .then(response => response.json())
+      const submittedRow = currentData.row;
+      callGAS("submitReport", { payload: currentData })
       .then(res => {
         document.getElementById('loading').style.display = 'none';
-        if(res.status === 'success') { alert("報告產出成功！"); loadList(); } 
+        if(res.status === 'success') { alert(res.message ? ("報告產出成功！" + (res.message.indexOf("略過") !== -1 ? "\n（" + res.message + "）" : "")) : "報告產出成功！"); loadList(); } 
         else alert("錯誤：" + res.message);
       })
-      .catch(err => {
-        document.getElementById('loading').style.display = 'none'; 
-        alert("網路錯誤，請稍後再試");
+      .catch(async err => {
+        // 🌟 拿不到回應 ≠ 沒成功：後端常常已經跑完只是回應掉了。等 3 秒回頭查名單再決定
+        try {
+          await new Promise(r => setTimeout(r, 3000));
+          const stillPending = await isStillPending(submittedRow);
+          document.getElementById('loading').style.display = 'none';
+          if (!stillPending) {
+            alert("報告已產出成功！\n（回應在傳回途中中斷，但後端已完成，不需要重送）");
+          } else {
+            alert("網路錯誤，這筆尚未完成，請再送一次。\n" + err.message);
+          }
+        } catch (e2) {
+          document.getElementById('loading').style.display = 'none';
+          alert("網路連線不穩，無法確認是否已產出。\n請先按「重新讀取名單」：如果這位病人已不在名單中，代表已成功，不要重送。");
+        }
+        loadList();
       });
     }
   </script>
