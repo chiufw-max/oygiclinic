@@ -115,9 +115,9 @@
       <input type="text" id="signerIdNo" placeholder="簽署者身分證字號" maxlength="10" oninput="updateIdCount('signerIdNo', 'signerIdCount')">
     </div>
     
-    <label class="field-label">執行醫師</label>
+    <label class="field-label">醫師</label>
     <select id="doctorSelect" required style="width: 100%; padding: 10px; font-size: 18px;">
-      <option value="" disabled selected hidden>請選擇執行醫師</option>
+      <option value="" disabled selected hidden>請選擇醫師</option>
       <option value="賴佳業">賴佳業 醫師</option>
       <option value="陳正哲">陳正哲 醫師</option>
       <option value="翁偉銘">翁偉銘 醫師</option>
@@ -406,7 +406,7 @@
       if (!medNo) return alert("請輸入病歷號！");
       if (!name || !pId || !rel || !phone) return alert("請填寫所有必填欄位！");
       if (rel !== '本人' && !sId) return alert("請填寫立同意書人身分證字號！");
-      if (!doctor) return alert("請選擇執行醫師！");
+      if (!doctor) return alert("請選擇醫師！");
 
       currentData = {
         medRecordNo: medNo,
