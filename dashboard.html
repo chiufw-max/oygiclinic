@@ -72,6 +72,12 @@
     .pid-field label { display: block; font-size: 22px; color: #2c3e50; font-weight: bold; margin-bottom: 8px; }
     .pid-field input { width: 100%; box-sizing: border-box; height: 70px; font-size: 32px; padding: 0 18px; border: 2px solid #bdc3c7; border-radius: 15px; font-family: monospace; letter-spacing: 2px; }
     .pid-field input:focus { border-color: #3498db; outline: none; }
+    .doc-btn { cursor: pointer; font-size: 16px; color: #7f8c8d; padding: 3px 10px; border-radius: 10px; border: 1px dashed #bdc3c7; background: #fafafa; user-select: none; white-space: nowrap; }
+    .doc-btn:active { transform: scale(0.95); background: #ecf0f1; }
+    .doc-choice-list { display: flex; flex-direction: column; gap: 14px; margin: 10px 0 24px; }
+    .doc-choice { height: 72px; font-size: 28px; font-weight: bold; border-radius: 15px; border: 2px solid #bdc3c7; background: #fff; color: #2c3e50; cursor: pointer; }
+    .doc-choice.current { border-color: #3498db; background: #eaf4fc; color: #2980b9; }
+    .doc-choice:active { transform: scale(0.97); }
     
     .tags { display: flex; flex-wrap: wrap; gap: 10px; margin-top: auto; margin-bottom: 25px; min-height: 45px; }
     .tag { padding: 8px 16px; border-radius: 15px; font-size: 20px; font-weight: bold; background: #ecf0f1; color: #34495e; }
@@ -287,6 +293,17 @@
       <div class="modal-btns">
         <button class="btn-cancel" onclick="closePidModal()">取消</button>
         <button class="btn-confirm" style="background:#3498db;" onclick="savePidModal()">儲存</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="doctor-modal" class="modal-overlay">
+    <div class="edit-modal-content">
+      <h2>修正 <span id="doctor-modal-name" style="color:#3498db;"></span> 的醫師</h2>
+      <div id="doctor-choice-list" class="doc-choice-list"></div>
+      <p style="font-size: 16px; color: #95a5a6; text-align: left; margin: 0 0 20px;">※ 同一位病人今天的胃鏡／大腸鏡卡片會一併更新，不需要重簽</p>
+      <div class="modal-btns">
+        <button class="btn-cancel" onclick="closeDoctorModal()">取消</button>
       </div>
     </div>
   </div>
@@ -582,7 +599,7 @@
                 <span class="type-badge">${p.type}</span>${labIconHtml}
               </div>
               <div style="display: flex; align-items: center; gap: 5px;">
-                <span style="font-size:16px; color:#95a5a6;">${p.doctor} 醫師</span>
+                <span class="doc-btn" onclick="openDoctorModal(${p.row}, '${p.name}', '${p.doctor || ''}')" title="點擊修正醫師">${p.doctor ? p.doctor + ' 醫師' : '<span class="pid-empty">未選醫師</span>'}</span>
                 <button class="btn-edit" style="font-size: 20px; padding: 2px;" onclick="openEditModal(${p.row}, '${p.type}', '${p.allItems}')" title="修改項目">✏️</button>
               </div>
             </div>
@@ -820,6 +837,32 @@
         })
         .catch(err => {
           document.getElementById('loadingOverlay').style.display = 'none'; alert("網路失敗：" + err.message);
+        });
+    }
+
+    // ===== 修正醫師（選錯醫師不用重簽）=====
+    const DOCTORS = ['賴佳業', '陳正哲', '翁偉銘'];
+    let currentDoctorRow = null;
+    function openDoctorModal(row, name, doctor) {
+      currentDoctorRow = row;
+      document.getElementById('doctor-modal-name').innerText = name;
+      const list = document.getElementById('doctor-choice-list'); list.innerHTML = '';
+      DOCTORS.forEach(d => {
+        list.innerHTML += `<button class="doc-choice ${d === doctor ? 'current' : ''}" onclick="saveDoctor('${d}')">${d} 醫師${d === doctor ? '（目前）' : ''}</button>`;
+      });
+      document.getElementById('doctor-modal').style.display = 'flex';
+    }
+    function closeDoctorModal() { document.getElementById('doctor-modal').style.display = 'none'; currentDoctorRow = null; }
+    function saveDoctor(doctor) {
+      if (!currentDoctorRow) return;
+      document.getElementById('loadingOverlay').style.display = 'flex';
+      callGAS("updateDoctor", { rowNum: currentDoctorRow, doctor: doctor })
+        .then(res => {
+          document.getElementById('loadingOverlay').style.display = 'none';
+          if (res.status === 'success') { closeDoctorModal(); loadPatients(); } else { alert(res.message); }
+        })
+        .catch(err => {
+          document.getElementById('loadingOverlay').style.display = 'none'; alert("儲存失敗：" + err.message);
         });
     }
 
