@@ -72,12 +72,37 @@
     .pid-field label { display: block; font-size: 22px; color: #2c3e50; font-weight: bold; margin-bottom: 8px; }
     .pid-field input { width: 100%; box-sizing: border-box; height: 70px; font-size: 32px; padding: 0 18px; border: 2px solid #bdc3c7; border-radius: 15px; font-family: monospace; letter-spacing: 2px; }
     .pid-field input:focus { border-color: #3498db; outline: none; }
+    .name-btn { cursor: pointer; border-bottom: 2px dashed #bdc3c7; user-select: none; }
+    .name-btn:active { opacity: 0.6; }
+    #name-input { font-family: inherit; letter-spacing: 1px; }
     .doc-btn { cursor: pointer; font-size: 16px; color: #7f8c8d; padding: 3px 10px; border-radius: 10px; border: 1px dashed #bdc3c7; background: #fafafa; user-select: none; white-space: nowrap; }
     .doc-btn:active { transform: scale(0.95); background: #ecf0f1; }
     .doc-choice-list { display: flex; flex-direction: column; gap: 14px; margin: 10px 0 24px; }
     .doc-choice { height: 72px; font-size: 28px; font-weight: bold; border-radius: 15px; border: 2px solid #bdc3c7; background: #fff; color: #2c3e50; cursor: pointer; }
     .doc-choice.current { border-color: #3498db; background: #eaf4fc; color: #2980b9; }
     .doc-choice:active { transform: scale(0.97); }
+    /* 🌟 麻醉生命徵象 */
+    .vitals-strip { margin: 6px 0 10px; }
+    .btn-row { display: flex; gap: 10px; }
+    .btn-row .btn-complete, .btn-row .btn-start { flex: 1; width: auto; min-width: 0; }
+    .btn-start { height: 75px; border-radius: 18px; font-size: 28px; font-weight: bold; border: none; cursor: pointer; transition: 0.1s; color: #fff; background: linear-gradient(135deg, #8e44ad, #9b59b6); }
+    .btn-start:active { transform: scale(0.97); }
+    .vitals-badge { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 12px; border-radius: 12px; background: #f4ecf7; border: 1px dashed #9b59b6; color: #6c3483; font-size: 16px; cursor: pointer; }
+    .vitals-badge b { font-size: 17px; }
+    .vitals-badge .vb-tag { background: #9b59b6; color: #fff; border-radius: 8px; padding: 2px 8px; font-size: 14px; }
+    .vt-sec { border: 2px solid #e8daef; border-radius: 16px; padding: 14px 16px 6px; margin-bottom: 16px; text-align: left; }
+    .vt-sec h3 { margin: 0 0 10px; font-size: 22px; color: #6c3483; }
+    .vt-row { display: flex; gap: 8px; align-items: flex-end; }
+    .vt-wrap { padding: 8px 4px; border-width: 3px; border-radius: 14px; min-width: 0; }
+    .vt-wrap label { font-size: 15px; margin-bottom: 4px; white-space: nowrap; }
+    .vt-wrap .fake-val { font-size: 32px; min-height: 42px; line-height: 42px; }
+    #vitals-modal .vt-wrap.active { border-color: #9b59b6; background: #f4ecf7; }
+    #vitals-modal .vt-wrap.active label { color: #8e44ad; }
+    .key-next { background: #9b59b6; color: white; box-shadow: 0 4px 0 #7d3c98; }
+    .key-next:active { background: #7d3c98; box-shadow: 0 0 0 #7d3c98; }
+    .vt-slash { font-size: 30px; color: #7f8c8d; padding-bottom: 14px; }
+    /* 平板連點數字不要觸發雙擊放大 */
+    html, body, button, .key, .fake-input-wrap, .vt-wrap, .modal-overlay, .modal-content, .edit-modal-content { touch-action: manipulation; }
     
     .tags { display: flex; flex-wrap: wrap; gap: 10px; margin-top: auto; margin-bottom: 25px; min-height: 45px; }
     .tag { padding: 8px 16px; border-radius: 15px; font-size: 20px; font-weight: bold; background: #ecf0f1; color: #34495e; }
@@ -297,6 +322,21 @@
     </div>
   </div>
 
+  <div id="name-modal" class="modal-overlay">
+    <div class="edit-modal-content">
+      <h2>修正病患姓名</h2>
+      <div class="pid-field">
+        <label>姓名（目前：<span id="name-modal-old" style="color:#3498db;"></span>）</label>
+        <input type="text" id="name-input" maxlength="20" autocomplete="off">
+      </div>
+      <p style="font-size: 16px; color: #95a5a6; text-align: left; margin: 0 0 20px;">※ 同一位病人今天的胃鏡／大腸鏡卡片會一併更新，不需要重簽</p>
+      <div class="modal-btns">
+        <button class="btn-cancel" onclick="closeNameModal()">取消</button>
+        <button class="btn-confirm" style="background:#3498db;" onclick="saveNameModal()">儲存</button>
+      </div>
+    </div>
+  </div>
+
   <div id="doctor-modal" class="modal-overlay">
     <div class="edit-modal-content">
       <h2>修正 <span id="doctor-modal-name" style="color:#3498db;"></span> 的醫師</h2>
@@ -304,6 +344,43 @@
       <p style="font-size: 16px; color: #95a5a6; text-align: left; margin: 0 0 20px;">※ 同一位病人今天的胃鏡／大腸鏡卡片會一併更新，不需要重簽</p>
       <div class="modal-btns">
         <button class="btn-cancel" onclick="closeDoctorModal()">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="vitals-modal" class="modal-overlay">
+    <div class="edit-modal-content" style="width: 640px;">
+      <h2 id="vitals-modal-title"><span id="vitals-modal-name" style="color:#8e44ad;"></span> 麻醉生命徵象</h2>
+      <div class="vt-sec" id="vt-sec-pre">
+        <h3>檢查前</h3>
+        <div class="vt-row">
+          <div class="fake-input-wrap vt-wrap" id="wrap-vt-pre-sys" onclick="setVtActive('vt-pre-sys')"><label>收縮壓</label><div class="fake-val" id="vt-pre-sys"></div></div>
+          <div class="vt-slash">/</div>
+          <div class="fake-input-wrap vt-wrap" id="wrap-vt-pre-dia" onclick="setVtActive('vt-pre-dia')"><label>舒張壓</label><div class="fake-val" id="vt-pre-dia"></div></div>
+          <div class="fake-input-wrap vt-wrap" id="wrap-vt-pre-pulse" onclick="setVtActive('vt-pre-pulse')"><label>脈搏 (次/分)</label><div class="fake-val" id="vt-pre-pulse"></div></div>
+          <div class="fake-input-wrap vt-wrap" id="wrap-vt-pre-spo2" onclick="setVtActive('vt-pre-spo2')"><label>血氧 (%)</label><div class="fake-val" id="vt-pre-spo2"></div></div>
+        </div>
+      </div>
+      <div class="vt-sec" id="vt-sec-post">
+        <h3>檢查後</h3>
+        <div class="vt-row">
+          <div class="fake-input-wrap vt-wrap" id="wrap-vt-post-sys" onclick="setVtActive('vt-post-sys')"><label>收縮壓</label><div class="fake-val" id="vt-post-sys"></div></div>
+          <div class="vt-slash">/</div>
+          <div class="fake-input-wrap vt-wrap" id="wrap-vt-post-dia" onclick="setVtActive('vt-post-dia')"><label>舒張壓</label><div class="fake-val" id="vt-post-dia"></div></div>
+          <div class="fake-input-wrap vt-wrap" id="wrap-vt-post-pulse" onclick="setVtActive('vt-post-pulse')"><label>脈搏 (次/分)</label><div class="fake-val" id="vt-post-pulse"></div></div>
+          <div class="fake-input-wrap vt-wrap" id="wrap-vt-post-spo2" onclick="setVtActive('vt-post-spo2')"><label>血氧 (%)</label><div class="fake-val" id="vt-post-spo2"></div></div>
+        </div>
+      </div>
+      <div class="keypad" style="gap: 8px; margin-bottom: 14px;">
+<button class="key" style="height:56px; font-size:26px;" onclick="vtKey('1')">1</button><button class="key" style="height:56px; font-size:26px;" onclick="vtKey('2')">2</button><button class="key" style="height:56px; font-size:26px;" onclick="vtKey('3')">3</button>
+<button class="key" style="height:56px; font-size:26px;" onclick="vtKey('4')">4</button><button class="key" style="height:56px; font-size:26px;" onclick="vtKey('5')">5</button><button class="key" style="height:56px; font-size:26px;" onclick="vtKey('6')">6</button>
+<button class="key" style="height:56px; font-size:26px;" onclick="vtKey('7')">7</button><button class="key" style="height:56px; font-size:26px;" onclick="vtKey('8')">8</button><button class="key" style="height:56px; font-size:26px;" onclick="vtKey('9')">9</button>
+<button class="key key-next" style="height:56px; font-size:22px;" onclick="vtKey('next')">下一格 ▶</button><button class="key" style="height:56px; font-size:26px;" onclick="vtKey('0')">0</button><button class="key key-del" style="height:56px; font-size:26px;" onclick="vtKey('del')">⌫</button>
+      </div>
+      <p id="vitals-modal-hint" style="font-size: 16px; color: #95a5a6; text-align: left; margin: 0 0 20px;">※ 同一位病人今天的胃鏡／大腸鏡卡片會一併記錄</p>
+      <div class="modal-btns">
+        <button class="btn-cancel" onclick="closeVitalsModal()">取消</button>
+        <button class="btn-confirm" style="background:#8e44ad; font-size: 24px;" id="vitals-save-btn" onclick="saveVitalsModal()">儲存</button>
       </div>
     </div>
   </div>
@@ -499,12 +576,14 @@
       localStorage.setItem(key, isNowCompleted);
     }
 
+    let currentPatients = []; // 🌟 最近一次成功載入的卡片（給生命徵象流程判斷用）
     function loadPatients() { 
       callGAS("getPendingPatients")
         .then(res => {
           // 相容兩種回傳結構
           const patients = Array.isArray(res.data) ? res.data : 
                            Array.isArray(res) ? res : [];
+          currentPatients = patients;
           renderCards(patients);
         })
         .catch(err => {
@@ -605,7 +684,7 @@
             </div>
             <div class="card-body">
               <div class="patient-name" style="display: flex; align-items: center; flex-wrap: wrap; gap: 6px; line-height: 1.2;">
-                <span>${p.name}</span>
+                <span class="name-btn" onclick="openNameModal(${p.row}, '${p.name}')" title="點擊修正姓名">${p.name}</span>
                 ${historyHtml}
               </div>
               <div class="patient-id">
@@ -613,11 +692,13 @@
                 <span class="pid-sep">｜</span>
                 <span class="pid-btn" onclick="openPidModal(${p.row}, '${p.name}', '${p.idNo || ''}', '${p.medNo || ''}', 'pid-medNo')" title="點擊修正病歷號">${p.medNo || '<span class="pid-empty">未填病歷號</span>'}</span>
               </div>
+              ${renderVitalsStrip(p)}
               <div class="tags">${parseTags(p.allItems)}</div>
             </div>
-            <button class="btn-complete" onclick="handleComplete(${p.row}, '${p.type}', '${p.name}')">
-              結束檢查 / 記錄
-            </button>
+            <div class="btn-row">
+              ${renderStartBtn(p)}
+              <button class="btn-complete" onclick="handleComplete(${p.row}, '${p.type}', '${p.name}')">結束檢查</button>
+            </div>
           </div>
         `;
         container.innerHTML += card;
@@ -643,6 +724,20 @@
 
 
     function handleComplete(row, type, name) {
+      // 🌟 無痛／好腸胃：結束前先確認生命徵象（檢查前一定要有；同病人今天最後一張還要有檢查後）
+      const p = currentPatients.find(x => x.row === row);
+      if (p && isSedation(p.allItems)) {
+        const needPre = !hasPre(p);
+        const needPost = isLastSedationCard(p) && !hasPost(p);
+        if (needPre || needPost) {
+          openVitalsModal(p, needPre && needPost ? 'both' : (needPre ? 'pre' : 'post'), () => handleCompleteStep2(row, type, name));
+          return;
+        }
+      }
+      handleCompleteStep2(row, type, name);
+    }
+
+    function handleCompleteStep2(row, type, name) {
       currentRow = row; currentType = type;
       if (type === '大腸鏡') {
         document.getElementById('modal-name').innerText = name;
@@ -792,6 +887,30 @@
 
     function closeEditModal() { document.getElementById('edit-modal').style.display = 'none'; }
 
+    // ===== 修正姓名（打錯字不用重簽）=====
+    let currentNameRow = null;
+    function openNameModal(row, name) {
+      currentNameRow = row;
+      document.getElementById('name-modal-old').innerText = name;
+      document.getElementById('name-input').value = name;
+      document.getElementById('name-modal').style.display = 'flex';
+      setTimeout(() => { const el = document.getElementById('name-input'); el.focus(); el.select(); }, 50);
+    }
+    function closeNameModal() { document.getElementById('name-modal').style.display = 'none'; currentNameRow = null; }
+    function saveNameModal() {
+      const name = document.getElementById('name-input').value.trim();
+      if (!name) { alert("姓名不可為空"); return; }
+      document.getElementById('loadingOverlay').style.display = 'flex';
+      callGAS("updateName", { rowNum: currentNameRow, name: name })
+        .then(res => {
+          document.getElementById('loadingOverlay').style.display = 'none';
+          if (res.status === 'success') { closeNameModal(); loadPatients(); } else { alert(res.message); }
+        })
+        .catch(err => {
+          document.getElementById('loadingOverlay').style.display = 'none'; alert("儲存失敗：" + err.message);
+        });
+    }
+
     // ===== 修正身分證字號 / 病歷號 =====
     let currentPidRow = null;
     function openPidModal(row, name, idNo, medNo, focusId) {
@@ -864,6 +983,104 @@
         .catch(err => {
           document.getElementById('loadingOverlay').style.display = 'none'; alert("儲存失敗：" + err.message);
         });
+    }
+
+    // ===== 麻醉生命徵象（無痛／好腸胃）=====
+    function isSedation(allItems) { const s = allItems || ''; return s.includes('無痛') || s.includes('好腸胃'); }
+    function hasPre(p) { return !!(p.preBP && p.prePulse && p.preSpO2); }
+    function hasPost(p) { return !!(p.postBP && p.postPulse && p.postSpO2); }
+    // 同一位病人今天是否還有「其他」無痛卡片在名單上；沒有 → 這張是最後一張，結束時要填檢查後
+    function isLastSedationCard(p) { return !currentPatients.some(x => x.row !== p.row && x.idNo === p.idNo && isSedation(x.allItems)); }
+    function vitalsText(bp, pulse, spo2) { return `${bp}・${pulse}・${spo2}%`; }
+
+    // 無痛／好腸胃且還沒量檢查前 → 卡片底部多一顆「開始檢查」鈕（與「結束檢查」同一列）
+    function renderStartBtn(p) {
+      if (!isSedation(p.allItems) || hasPre(p)) return '';
+      return `<button class="btn-start" onclick="openVitalsModal(currentPatients.find(x => x.row === ${p.row}), 'pre')">開始檢查</button>`;
+    }
+    function renderVitalsStrip(p) {
+      if (!isSedation(p.allItems) || !hasPre(p)) return '';
+      let html = `<div class="vitals-strip"><div class="vitals-badge" onclick="openVitalsModal(currentPatients.find(x => x.row === ${p.row}), 'edit')" title="點擊修改"><span><span class="vb-tag">檢查前</span> <b>${vitalsText(p.preBP, p.prePulse, p.preSpO2)}</b></span>`;
+      if (hasPost(p)) html += `<span><span class="vb-tag">檢查後</span> <b>${vitalsText(p.postBP, p.postPulse, p.postSpO2)}</b></span>`;
+      html += `</div></div>`;
+      return html;
+    }
+
+    let vitalsCtx = null; // { p, mode, phases:['pre','post'], onDone }
+    function fillVitalsInputs(prefix, bp, pulse, spo2) {
+      const m = /^(\d+)\s*\/\s*(\d+)$/.exec(bp || '');
+      document.getElementById(`vt-${prefix}-sys`).innerText = m ? m[1] : '';
+      document.getElementById(`vt-${prefix}-dia`).innerText = m ? m[2] : '';
+      document.getElementById(`vt-${prefix}-pulse`).innerText = pulse || '';
+      document.getElementById(`vt-${prefix}-spo2`).innerText = spo2 || '';
+    }
+    // 生命徵象專用點按鍵盤：點格子切換、滿 3 位自動跳下一格、「下一格」手動跳
+    let vtActive = null;
+    function vtOrder() { return (vitalsCtx ? vitalsCtx.phases : []).flatMap(ph => ['sys', 'dia', 'pulse', 'spo2'].map(k => `vt-${ph}-${k}`)); }
+    function setVtActive(id) {
+      vtActive = id;
+      document.querySelectorAll('#vitals-modal .vt-wrap').forEach(el => el.classList.toggle('active', el.id === 'wrap-' + id));
+    }
+    function vtKey(k) {
+      if (!vtActive) return;
+      const el = document.getElementById(vtActive);
+      const order = vtOrder();
+      const next = () => { const i = order.indexOf(vtActive); if (i >= 0 && i < order.length - 1) setVtActive(order[i + 1]); };
+      if (k === 'del') { el.innerText = el.innerText.slice(0, -1); return; }
+      if (k === 'next') { next(); return; }
+      if (el.innerText.length >= 3) return;
+      el.innerText += k;
+      if (el.innerText.length === 3) next();
+    }
+    // mode: 'pre' | 'post' | 'both' | 'edit'（edit = 兩段都顯示、都可改，不強制）
+    function openVitalsModal(p, mode, onDone) {
+      if (!p) return;
+      const phases = mode === 'pre' ? ['pre'] : mode === 'post' ? ['post'] : ['pre', 'post'];
+      vitalsCtx = { p, mode, phases, onDone: onDone || null };
+      document.getElementById('vitals-modal-name').innerText = p.name;
+      document.getElementById('vt-sec-pre').style.display = phases.includes('pre') ? 'block' : 'none';
+      document.getElementById('vt-sec-post').style.display = phases.includes('post') ? 'block' : 'none';
+      fillVitalsInputs('pre', p.preBP, p.prePulse, p.preSpO2);
+      fillVitalsInputs('post', p.postBP, p.postPulse, p.postSpO2);
+      document.getElementById('vitals-save-btn').innerText = onDone ? '儲存並繼續結束檢查' : '儲存';
+      document.getElementById('vitals-modal-hint').innerText = mode === 'pre' ? '※ 開始檢查前量測。同一位病人今天的胃鏡／大腸鏡卡片會一併記錄' : (mode === 'post' ? '※ 這是這位病人今天最後一張無痛卡片，請輸入檢查後數值' : '※ 同一位病人今天的胃鏡／大腸鏡卡片會一併記錄');
+      document.getElementById('vitals-modal').style.display = 'flex';
+      setVtActive(phases[0] === 'pre' ? 'vt-pre-sys' : 'vt-post-sys');
+    }
+    function closeVitalsModal() { document.getElementById('vitals-modal').style.display = 'none'; vitalsCtx = null; }
+    function readVitalsInputs(prefix) {
+      const g = id => document.getElementById(`vt-${prefix}-${id}`).innerText.trim();
+      const sys = g('sys'), dia = g('dia'), pulse = g('pulse'), spo2 = g('spo2');
+      const filled = [sys, dia, pulse, spo2].filter(Boolean).length;
+      return { sys, dia, pulse, spo2, complete: filled === 4, empty: filled === 0, bp: `${sys}/${dia}` };
+    }
+    async function saveVitalsModal() {
+      if (!vitalsCtx) return;
+      const { p, mode, phases, onDone } = vitalsCtx;
+      const toSave = [];
+      for (const ph of phases) {
+        const v = readVitalsInputs(ph);
+        const label = ph === 'pre' ? '檢查前' : '檢查後';
+        if (mode === 'edit' && v.empty) continue;          // 修改模式：沒動到的那段可留空
+        if (!v.complete) { alert(`請填完整${label}的收縮壓、舒張壓、脈搏、血氧`); return; }
+        toSave.push({ ph, v });
+      }
+      if (toSave.length === 0) { closeVitalsModal(); return; }
+      document.getElementById('loadingOverlay').style.display = 'flex';
+      try {
+        for (const { ph, v } of toSave) {
+          const res = await callGAS("saveVitals", { rowNum: p.row, phase: ph, bp: v.bp, pulse: v.pulse, spo2: v.spo2 });
+          if (res.status !== 'success') throw new Error(res.message || '儲存失敗');
+          // 同病人今天的卡片本地也先更新，讓後續流程判斷正確
+          currentPatients.forEach(x => { if (x.row === p.row || x.idNo === p.idNo) { if (ph === 'pre') { x.preBP = v.bp; x.prePulse = v.pulse; x.preSpO2 = v.spo2; } else { x.postBP = v.bp; x.postPulse = v.pulse; x.postSpO2 = v.spo2; } } });
+        }
+        document.getElementById('loadingOverlay').style.display = 'none';
+        closeVitalsModal();
+        if (onDone) onDone(); else loadPatients();
+      } catch (err) {
+        document.getElementById('loadingOverlay').style.display = 'none';
+        alert("儲存失敗：" + err.message);
+      }
     }
 
     function adjustQty(type, amount) {
