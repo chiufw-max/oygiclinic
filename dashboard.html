@@ -72,7 +72,7 @@
     .pid-field label { display: block; font-size: 22px; color: #2c3e50; font-weight: bold; margin-bottom: 8px; }
     .pid-field input { width: 100%; box-sizing: border-box; height: 70px; font-size: 32px; padding: 0 18px; border: 2px solid #bdc3c7; border-radius: 15px; font-family: monospace; letter-spacing: 2px; }
     .pid-field input:focus { border-color: #3498db; outline: none; }
-    .name-btn { cursor: pointer; border-bottom: 2px dashed #bdc3c7; user-select: none; }
+    .name-btn { cursor: pointer; user-select: none; }
     .name-btn:active { opacity: 0.6; }
     #name-input { font-family: inherit; letter-spacing: 1px; }
     .doc-btn { cursor: pointer; font-size: 16px; color: #7f8c8d; padding: 3px 10px; border-radius: 10px; border: 1px dashed #bdc3c7; background: #fafafa; user-select: none; white-space: nowrap; }
@@ -1066,6 +1066,17 @@
         toSave.push({ ph, v });
       }
       if (toSave.length === 0) { closeVitalsModal(); return; }
+      // 🌟 數值警示（多半是輸入錯誤）：收縮壓<70、舒張壓<40、脈搏<40 或 >120、血氧<90 → 確認後才儲存
+      const warns = [];
+      for (const { ph, v } of toSave) {
+        const label = ph === 'pre' ? '檢查前' : '檢查後';
+        const sys = +v.sys, dia = +v.dia, pulse = +v.pulse, spo2 = +v.spo2;
+        if (sys < 70) warns.push(`${label}收縮壓 ${sys}`);
+        if (dia < 40) warns.push(`${label}舒張壓 ${dia}`);
+        if (pulse < 40 || pulse > 120) warns.push(`${label}脈搏 ${pulse}`);
+        if (spo2 < 90) warns.push(`${label}血氧 ${spo2}%`);
+      }
+      if (warns.length > 0 && !confirm("以下數值超出常見範圍，請確認是否輸入正確：\n\n" + warns.join("\n") + "\n\n確定要以這些數值儲存嗎？")) return;
       document.getElementById('loadingOverlay').style.display = 'flex';
       try {
         for (const { ph, v } of toSave) {
